@@ -73,3 +73,55 @@ Aby zbudować i uruchomić cały system, wykonaj komendę:
 
 ```bash
 docker compose up --build
+
+
+### Opis testów
+uv run pytest -v tests/test_webhooks_e2e.py
+
+#### `test_webhook_happy_path`
+
+Sprawdza poprawny scenariusz działania:
+
+- wysyła poprawny webhook (`POST /webhooks`)
+- oczekuje odpowiedzi `201 Created`
+- czeka na przetworzenie przez worker
+- pobiera historię (`GET /webhooks/{id}/history`)
+- weryfikuje, że:
+  - webhook został dostarczony (`status = success`)
+  - odpowiedź HTTP była poprawna (`status_code = 200`)
+
+---
+
+#### `test_webhook_retries_on_500`
+
+Sprawdza mechanizm ponowień (retry):
+
+- wysyła webhook do endpointu zwracającego `500`
+- oczekuje odpowiedzi `201 Created`
+- czeka na wykonanie kilku prób przez worker
+- pobiera historię
+- weryfikuje, że:
+  - wystąpiły nieudane próby (`status = failed`)
+  - przynajmniej jedna próba zakończyła się kodem `500`
+
+---
+
+#### `test_invalid_url_returns_422`
+
+Sprawdza walidację danych wejściowych:
+
+- wysyła webhook z niepoprawnym URL (`"not-a-url"`)
+- oczekuje odpowiedzi `422 Unprocessable Entity`
+
+---
+
+#### `test_ignore_duplicate_webhooks_within_10_seconds`
+
+Sprawdza mechanizm deduplikacji:
+
+- wysyła webhook z określonym URL i payloadem
+- natychmiast wysyła drugi identyczny webhook
+- oczekuje, że drugi zostanie odrzucony (np. `409 Conflict`)
+- weryfikuje, że:
+  - webhook został przetworzony tylko raz
+  - nie powstało dodatkowe dostarczenie dla duplikatu
