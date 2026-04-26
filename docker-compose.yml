@@ -1,0 +1,39 @@
+services:
+  api:
+    build: .
+    container_name: webhook-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./src/.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    container_name: webhook-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: webhooks
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  httpbin:
+    image: mccutchen/go-httpbin
+    container_name: webhook-httpbin
+    ports:
+      - "80:8080"
+
+
+
+volumes:
+  mysql_data:
